@@ -1,0 +1,196 @@
+---
+title: "Data 608-01 Spring 2021: Homework #1"
+author: "Adam Rich"
+date: "February 14, 2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  fig.width = 4.5, 
+  fig.height = 6)
+
+suppressPackageStartupMessages(suppressWarnings(
+  library(tidyverse, warn.conflicts = FALSE, quietly = TRUE)
+))
+```
+
+
+## Additional Summaries
+
+```{r echo=FALSE, results='hide'}
+inc_cols <- cols(
+  Rank = col_double(),
+  Name = col_character(),
+  Growth_Rate = col_double(),
+  Revenue = col_double(),
+  Industry = col_character(),
+  Employees = col_double(),
+  City = col_character(),
+  State = col_character() )
+
+inc <- readr::read_csv('inc5000_data.csv', col_types = inc_cols)
+```
+
+```{r eval=FALSE, echo=TRUE}
+inc <- readr::read_csv("inc5000_data.csv")
+```
+
+```{r}
+# Number of unique industries represented
+length(unique(inc$Industry))
+
+# Unique States
+# 50 + DC + PR
+length(unique(inc$State))
+table(inc$State)
+
+# Top 5 industries by count
+inc %>% 
+  group_by(Industry) %>% 
+  summarize(Count = n()) %>% 
+  arrange(desc(Count)) %>% 
+  head(5)
+
+# Top 5 States by count
+inc %>% 
+  group_by(State) %>% 
+  summarize(Count = n()) %>% 
+  arrange(desc(Count)) %>% 
+  head(5)
+
+# Top 5 companies by revenue
+inc %>% 
+  mutate(RevenueBillions = Revenue / 1e9) %>% 
+  select(Name, RevenueBillions) %>% 
+  arrange(desc(RevenueBillions)) %>% 
+  head(5)
+```
+
+
+
+
+
+
+## Question 1
+
+* Show this two different ways
+* By count -- makes it easier to compare similar counts over so many levels
+* But it makes it hard to find, so having an option to show it alphabetically would also be good
+
+
+```{r}
+
+# Sorted by count for easier comparison
+inc %>%
+  mutate(State = factor(
+    inc$State,
+    levels = names(sort(table(inc$State), decreasing = FALSE)))) %>%
+  group_by(State) %>%
+  summarize(Count = n()) %>%
+  ggplot() +
+  aes(x = State, y = Count) +
+  geom_col() +
+  coord_flip()
+```
+
+```{r}
+
+# Sorted alphabetically for easier finding
+inc %>% 
+  mutate(State = factor(
+    inc$State,
+    levels = sort(unique(inc$State), decreasing = TRUE))) %>%
+  group_by(State) %>% 
+  summarize(Count = n()) %>% 
+  ggplot() +
+  aes(x = State, y = Count) + 
+  geom_col() +
+  coord_flip()
+```
+
+
+
+
+
+## Question 2
+
+* Sort industries alphabetically
+* Use a boxplot to show variability
+* Outliers are shown as individual points
+* Show x axis on a log-scale because there are some very large companies
+* Add the company count per industry to the label
+
+
+```{r}
+
+# New York is the 3rd most represented State
+table(inc$State) %>% sort(decreasing = TRUE) %>% head()
+
+inc_NY <- inc %>% 
+  filter(State == 'NY', complete.cases(.))
+
+# Add company counts to labels
+counts_by_industry <- inc_NY %>% 
+  group_by(Industry) %>% 
+  summarize(Count = n())
+
+counts_by_industry$`Industry:N` <- 
+  apply(
+    X = counts_by_industry[, 1:2], 
+    MARGIN = 1, 
+    FUN = function(r) {paste0(r, collapse = ':')})
+
+# Show employee counts on LOG scale because outliers are HUGE
+inc_NY %>% 
+  inner_join(counts_by_industry) %>% 
+  mutate(`Industry:N` = factor(
+      x = `Industry:N`, 
+      levels = sort(unique(`Industry:N`), decreasing = TRUE))) %>% 
+  ggplot() +
+  aes(x = `Industry:N`, y = Employees) +
+  geom_boxplot() +
+  scale_y_log10() +
+  coord_flip()
+
+```
+
+
+
+
+
+## Question 3
+
+* Use a boxplot to show variability
+* Sort industries by *overall* revenue per employee
+* Boxplot shows the variability of the *individual* revenue per employee values
+
+
+```{r}
+
+ranked <- inc %>% 
+  filter(complete.cases(.)) %>% 
+  group_by(Industry) %>% 
+  summarize(RevPerEE_IndustryWide = sum(Revenue) / sum(Employees)) %>% 
+  arrange(RevPerEE_IndustryWide)
+
+# Assuming I should go back to full dataset
+inc %>% 
+  filter(complete.cases(.)) %>% 
+  mutate(
+    RevPerEE = Revenue / Employees,
+    Industry = factor(Industry, ranked$Industry)) %>% 
+  ggplot() +
+  aes(x = Industry, y = RevPerEE) +
+  geom_boxplot() +
+  scale_y_log10() +
+  coord_flip()
+
+```
+
+
+
+
