@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/728426/04955f9169aa47c6a9decea97a24c097
+bundleId: https://api.rpubs.com/api/v1/document/728426/04955f9169aa47c6a9decea97a24c097
+url: http://rpubs.com/adamleerich/728426
+when: 1613843053.57673
