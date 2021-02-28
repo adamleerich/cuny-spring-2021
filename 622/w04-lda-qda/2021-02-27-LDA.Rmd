@@ -1,0 +1,27 @@
+---
+layout: post
+title: "Rmd-based Reports with R Code Appendices"
+date:   2020-10-30 00:00:00 -0400
+categories: 
+---
+
+
+
+
+<!--
+How to link to local assets:
+
+  [text]({{ site.url }}/assets/file.pdf)
+  ![]({{ site.url }}/assets/image.jpg)
+  
+-->
+
+Fisher proposed linear discriminant analysis in 1936!
+That's before logistic regression which was invented in 1944 or 1958.
+
+
+Multiple-class linear regression is not seen often because discriminant
+analysis is popular for the same problem.
+
+What functions in R do multiple-class linear regression?
+
