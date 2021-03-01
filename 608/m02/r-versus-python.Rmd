@@ -3,6 +3,8 @@ title: "R and Python"
 author: "Adam Rich"
 date: "Feb 28, 2021"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -11,6 +13,7 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   cache = TRUE)
 library(reticulate)
+reticulate::use_python('C:/Users/richad/Anaconda3/python.exe')
 ```
 
 
@@ -26,3 +29,32 @@ import pandas as pd
 import numpy as np
 pstates = pd.read_csv('states.csv')
 ```
+
+
+```{r}
+dim(rstates)
+head(rstates)
+slice(rstates, 1:10)   # rstates[1:10, ]
+```
+```{python}
+pstates.shape
+pstates.head()
+pstates.iloc[:9]
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
