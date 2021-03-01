@@ -1,0 +1,28 @@
+---
+title: "R and Python"
+author: "Adam Rich"
+date: "Feb 28, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  collapse = TRUE,
+  cache = TRUE)
+library(reticulate)
+```
+
+
+```{r}
+library(tidyverse)
+rstates <- read_csv('states.csv')
+```
+
+
+
+```{python}
+import pandas as pd
+import numpy as np
+pstates = pd.read_csv('states.csv')
+```
