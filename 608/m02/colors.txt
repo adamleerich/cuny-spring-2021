@@ -1,0 +1,9 @@
+r1c1 #9972af
+r1c2 #976b82
+r1c3 #804d36
+r2c1 #cbb8d7
+r2c2 #c8ada0
+r2c3 #af8e53
+r3c1 #e8e8e8
+r3c2 #e4d9ac
+r3c3 #c8b35a
