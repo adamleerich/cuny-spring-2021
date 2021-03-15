@@ -1,0 +1,20 @@
+cause_long,cause_code,cause_abbr
+Certain infectious and parasitic diseases,A00-B99,Infectious and Parasitic Diseases
+Neoplasms,C00-D48,Cancers
+Diseases of the blood and blood-forming organs and certain disorders involving the immune mechanism,D50-D89,Blood and Immune
+"Endocrine, nutritional and metabolic diseases",E00-E88,Nutritional and Metabolic
+Mental and behavioural disorders,F01-F99,Mental and Behavioral
+Diseases of the nervous system,G00-G98,Nervous
+Diseases of the circulatory system,I00-I99,Circulatory
+Diseases of the respiratory system,J00-J98,Respiratory
+Diseases of the digestive system,K00-K92,Digestive
+Diseases of the skin and subcutaneous tissue,L00-L98,Skin Related
+Diseases of the musculoskeletal system and connective tissue,M00-M99,Musculoskeletal
+Diseases of the genitourinary system,N00-N98,Reproductive
+"Pregnancy, childbirth and the puerperium",O00-O99,Pregnancy and Childbirth
+Certain conditions originating in the perinatal period,P00-P96,Perinatal Period
+"Congenital malformations, deformations and chromosomal abnormalities",Q00-Q99,Congenital
+"Symptoms, signs and abnormal clinical and laboratory findings, not elsewhere classified",R00-R99,Other
+External causes of morbidity and mortality,V01-Y89,External Causes
+Diseases of the ear and mastoid process,H60-H93,Ear Related
+Codes for special purposes,U00-U99,Special Causes
