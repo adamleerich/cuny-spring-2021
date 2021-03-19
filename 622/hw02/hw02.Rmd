@@ -71,6 +71,11 @@ models that you worked with. (10 points)
 penguins <- palmerpenguins::penguins %>% 
   select(-year)
 str(penguins)
+
+caret::featurePlot(
+  x = (penguins %>% select(-species)), 
+  y = penguins$species)
+
 ```
 
 

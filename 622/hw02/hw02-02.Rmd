@@ -1,0 +1,514 @@
+---
+title: "CUNY Spring 2021 Data 622 HW #2"
+author: "Adam Rich"
+output:
+  html_document: 
+    theme: "cerulean"
+editor_options:
+  chunk_output_type: "console"
+---
+
+
+```{r include=FALSE}
+options(tinytex.verbose = TRUE)
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  cache = TRUE)
+suppressPackageStartupMessages({
+  library(alrtools, quietly = TRUE, warn.conflicts = FALSE)
+  library(knitr, quietly = TRUE, warn.conflicts = FALSE)
+  library(tidyverse, quietly = TRUE, warn.conflicts = FALSE)
+  library(tree, quietly = TRUE, warn.conflicts = FALSE)
+  library(tidyverse, quietly = TRUE, warn.conflicts = FALSE)
+  library(caret, quietly = TRUE, warn.conflicts = FALSE)
+  library(pROC, quietly = TRUE, warn.conflicts = FALSE)
+  library(broom, quietly = TRUE, warn.conflicts = FALSE)
+  library(faraway, quietly = TRUE, warn.conflicts = FALSE)
+  library(palmerpenguins, quietly = TRUE, warn.conflicts = FALSE)
+  library(GGally, quietly = TRUE, warn.conflicts = FALSE)
+})
+```
+
+
+
+```{r include=FALSE}
+source('appendix.R')
+```
+
+
+
+
+## Penguins data
+
+The penguins data has 344 rows and 8 columns.
+Read more about the data at the 
+[package website](https://allisonhorst.github.io/palmerpenguins/articles/intro.html).
+
+
+```{r eval=FALSE, echo=TRUE}
+penguins <- palmerpenguins::penguins %>% 
+  select(-year)
+# Code for info is in appendix
+info(penguins)
+```
+```{r results='asis', echo=FALSE}
+penguins <- palmerpenguins::penguins %>% 
+  select(-year)
+info(penguins) %>% 
+  select(
+    column, type, min, max, zero_count, na_count, unique_values, levels) %>% 
+  knitr::kable(digits = c(0, 0, 1, 1, 0, 0, 0, 0))
+```
+
+
+### Distribution of Sex
+
+The distribution of penguins by sex is 50/50 for all species.
+The species representation in the sample, however, is not equal.
+
+```{r}
+table(penguins[, c('species', 'sex')], useNA = "always")
+table(penguins$species, useNA = "always") / nrow(penguins)
+```
+
+
+
+
+### Islands
+
+Gentoo are all on Biscoe island,
+Chinstrap are all on Dream island, 
+and Adelie can be found on all three.
+I am interested in whether the characteristics of the
+three populations of Adelie are different.
+
+```{r}
+table(penguins[, c('species', 'island')], useNA = 'always')
+adelie <- penguins %>% filter(species == 'Adelie')
+table(adelie[, c('island', 'sex')], useNA = 'always')
+
+adelie %>% 
+  mutate(ID = 1:nrow(.)) %>% 
+  drop_na() %>% 
+  select(-species, -sex) %>% 
+  pivot_longer(
+    cols = -c('ID', 'island'), 
+    names_to = 'field', 
+    values_to = 'value') %>% 
+  ggplot() +
+  aes(x = value, fill = island) +
+  geom_density(alpha = 0.75) +
+  facet_wrap(~field, scales = 'free')
+```
+
+There is something interesting with `bill_depth_mm`
+on Torgerson island, but nothing appears dramatic
+enough for me to want to include island.
+
+Based on this sample of birds, if we know the island a bird comes from,
+there are at most two species it can belong to.
+In the case of Torgersen island, we know it has to be Adelie.
+However, I want to build models that do not rely on island.
+
+
+
+
+
+
+### Pairs Plot
+
+```{r fig.width=6.5, fig.height=6.5, fig.align='center'}
+library(GGally)
+penguins %>% 
+  drop_na %>% 
+  select(
+    species, 
+    bill_length_mm, 
+    bill_depth_mm, 
+    flipper_length_mm, 
+    body_mass_g) %>% 
+  GGally::ggpairs(
+    progress = FALSE,
+    mapping = aes(
+      fill = species, color = species),
+    columns = setdiff(names(.), 'species'))
+```
+
+
+If you look at the distributions of `bill_depth_mm` and `body_mass_g`
+and their scatter plot, something really interesting pops out.
+There is a perfect linear separation of Gentoo from the other
+two species.  It's as if you could use the ratio of bill depth
+to body mass to predict whether an individual is Gentoo.
+Then, use a conditional logistic model to split Adelie from Chinstrap.
+
+
+
+
+
+
+## Part A: Linear Discriminant Analysis
+
+Based on the work above, I will *not* include `island` or `sex` in the models that follow.
+Define training and testing sets for all parts:
+
+```{r}
+set.seed(0)
+# TRUE means part of training set = 70% of observations
+L <- sample(
+  c(TRUE, FALSE), 
+  size = nrow(penguins), 
+  replace = TRUE, 
+  prob = c(0.7, 0.3))
+
+ptrain <- penguins %>% filter(L)  %>% select(-island, -sex)
+ptest  <- penguins %>% filter(!L) %>% select(-island, -sex)
+
+dim(ptrain)
+dim(ptest)
+```
+
+
+```{r}
+MASS::lda(species ~ ., data = (penguins %>% select(-island, -sex)))
+```
+
+
+
+
+
+### Part #1a: response variable
+
+There are three species.
+To do a true binomial logistic model,
+we need a response variable with only two classes!
+I'm going to combine the Adelie and Chinstrap species
+based on my observations above.
+
+```{r}
+penguins$gentoo <- penguins$species == 'Gentoo'
+sum(penguins$gentoo)
+```
+
+
+
+
+
+### Part #1b: variable and model selection
+
+I'm restricting my model building to the four continuous features.
+There are only 16 unique combinations of these four
+(ignoring derived features and interaction terms).
+It's easy enough to run all 16.
+
+```{r echo=TRUE, results='hide', warning=FALSE}
+# The four variables I care about
+cols <- c(
+  "bill_length_mm", 
+  "bill_depth_mm", 
+  "flipper_length_mm", 
+  "body_mass_g")
+
+# Build a "masking" matrix
+a <- c(TRUE, FALSE)
+b <- matrix(c(
+  rep(a, each = 8, length.out = 16),
+  rep(a, each = 4, length.out = 16),
+  rep(a, each = 2, length.out = 16),
+  rep(a, each = 1, length.out = 16)),
+  nrow = 16)
+
+# Temp vectors to store output
+converge <- logical()
+deviance <- numeric()
+aic <- numeric()
+mod_cols <- character()
+
+# Iterate through all 16 combinations
+for (i in 1:16) {
+  r <- b[i, ]
+  cols_i <- cols[r]
+  suppressWarnings(mod_i <- glm(
+    gentoo ~ .,
+    data = penguins[, c(cols_i, 'gentoo')],
+    family = 'binomial'))
+  converge[i] <- mod_i$converged
+  deviance[i] <- mod_i$deviance
+  aic[i] <- mod_i$aic
+}
+
+# Prepare an exhibit
+res <- ifelse(b, "X", "")
+colnames(res) <- cols
+res <- as.data.frame(res)
+res$converge <- converge
+res$deviance <- ifelse(converge, deviance, NA)
+res$aic <- ifelse(converge, aic, NA)
+```
+
+```{r results='asis'}
+res[c(which(converge), which(!converge)), ] %>% 
+  knitr::kable(digits = c(0, 0, 0, 0, 0, 1, 1))
+```
+
+Six of the sixteen do not converge.
+This is because of the perfect linear separation between Gentoo
+and the other species in the pairs plot above.
+All six have `bill_depth_mm` and at least one of
+`flipper_length_mm` and `body_mass_g`.
+
+Of the ten models that do converge,
+the two that have the lowest residual deviance are
+
+```{r}
+m1 <- glm(
+  gentoo ~ bill_length_mm + bill_depth_mm, 
+  data = penguins, family = binomial)
+
+m2 <- glm(
+  gentoo ~ bill_length_mm + flipper_length_mm + body_mass_g, 
+  data = penguins, family = binomial)
+```
+
+The potential of bill measurements being all that is needed is really
+attractive in this model.  However, the coefficients in that model
+are severe for a logistic model and make them hard to interpret.
+It also makes the model very sensitive to anomalous observations.
+
+The coefficients in `m2` are much less severe and lead to a more
+attractive model, with a low impact on AIC and residual deviance.
+
+```{r results='as-is'}
+knitr::kable(tidy(m1), digits = c(0, 3, 1, 1, 4))
+```
+
+```{r results='as-is'}
+knitr::kable(tidy(m2), digits = c(0, 3, 1, 1, 4))
+```
+
+I select `m2`, using
+`bill_length_mm + flipper_length_mm + body_mass_g`.
+
+
+
+
+
+
+### Part #1c: variable interpretations
+
+I'd like to discuss what the coefficients of a binomial model mean.
+This will help in understanding the output of `m2` and why
+`m1` is not a great choice.
+
+Use $L$ for the linear predictor or $L = \beta_0 + \beta_1 x_1 + \cdots$.
+The model is then
+
+$$
+\begin{aligned}
+L &= \log \frac{p}{1-p} \\
+e^L &= \frac{p}{1-p}
+\end{aligned}
+$$
+It's helpful to have an aid in understanding how changes in the linear
+predictor affect $p$.
+
+| p       | e^L     | L       |
+|:-------:|:-------:|:-------:|
+| 0.0     | 0.00    | -`Inf`  |
+| 0.01    | 1/99    | -4.6    |
+| 0.25    | 1/3     | -1.1    |
+| 0.5     | 1.0     | 0.00    |
+| 0.75    | 3.0     | 1.1     |
+| 0.99    | 99.0    | 4.6     |
+| 1.0     | `Inf`   | `Inf`   |
+
+
+A change of 4.6 x 2 is either direction changes the model
+output from a certainty of being in one class
+to a certainty of being in the other.  `m1`'s coefficient for
+`bill_depth_mm` is -4.5.  A change of just 2mm holding everything
+else equal is enough to change $p$ from 0.01 to 0.99 or vice-versa.
+It is just too sensitive.
+With `m2` to see a 10% change in $p$, bill length would have to change
+by about 3mm, flipper length by 1.5mm, or body mass by 200g.
+I believe this is a helpful way to understand the coefficients
+of the model and their impact on the overall probability of being Gentoo.
+
+
+
+
+
+
+## Question #2: model diagnostics
+
+See appendix for code of `model_objects`.
+
+```{r}
+mo2 <- model_objects(m2)
+
+# AUC
+mo2$auc
+
+# Accuracy
+mo2$accuracy
+
+# True positive rate aka Sensitivity
+mo2$sensitivity
+
+# True negative rate aka Specificity
+mo2$specificity
+
+# False positive rate = 1 - TNR
+1 - mo2$specificity
+
+# False negative rate = 1 - TPR
+1 - mo2$sensitivity
+```
+
+
+
+
+
+
+
+## Question #3: multinomial logistic regression
+
+Since there are only 16 models, I'll do the same as above
+and check convergence of all 16.
+
+
+```{r echo=TRUE, results='hide', warning=FALSE}
+# The four variables I care about
+cols <- c(
+  "bill_length_mm", 
+  "bill_depth_mm", 
+  "flipper_length_mm", 
+  "body_mass_g")
+
+# Build a "masking" matrix
+a <- c(TRUE, FALSE)
+b <- matrix(c(
+  rep(a, each = 8, length.out = 16),
+  rep(a, each = 4, length.out = 16),
+  rep(a, each = 2, length.out = 16),
+  rep(a, each = 1, length.out = 16)),
+  nrow = 16)
+
+# Temp vectors to store output
+converge <- logical()
+deviance <- numeric()
+aic <- numeric()
+mod_cols <- character()
+
+# Iterate through all 16 combinations
+for (i in 1:16) {
+  r <- b[i, ]
+  cols_i <- cols[r]
+  capture.output(suppressWarnings(mod_i <- nnet::multinom(
+    species ~ .,
+    data = penguins[, c(cols_i, 'species')])))
+  converge[i] <- mod_i$convergence == 0
+  deviance[i] <- mod_i$deviance
+  aic[i] <- mod_i$AIC
+}
+
+# Prepare an exhibit
+res <- ifelse(b, "X", "")
+colnames(res) <- cols
+res <- as.data.frame(res)
+res$converge <- converge
+res$deviance <- ifelse(converge, deviance, NA)
+res$aic <- ifelse(converge, aic, NA)
+```
+
+```{r results='asis'}
+res[c(which(converge), which(!converge)), ] %>% 
+  knitr::kable(digits = c(0, 0, 0, 0, 0, 1, 1))
+```
+
+This time, only two do not converge.
+Those are the two that include `bill_length_mm`,
+`bill_depth_mm`, and `body_mass_g`.
+
+The two best models, by residual deviance and AIC, are
+
+```{r results='hide'}
+multi1 <- nnet::multinom(
+    species ~ bill_length_mm + bill_depth_mm + flipper_length_mm,
+    data = penguins)
+
+multi2 <- nnet::multinom(
+    species ~ bill_length_mm + flipper_length_mm + body_mass_g,
+    data = penguins)
+
+```
+
+I'm selecting `multi2` because it has only slight worse AIC and deviance,
+uses the same variables as the 2-class problem above,
+and the coefficients are again less severe.
+
+```{r}
+tidy(multi2) %>% 
+  knitr::kable(digits = c(0, 0, 2, 3, 1, 3))
+```
+
+
+
+
+
+## Question #4: diagnotics for multinomial models
+
+I'd like to do something similar to the binomial case
+
+* 3x3 confusion matrix
+* half-normal plots, like Faraway does in "Extending the Linear Model with R"
+* plotting a ROC curve
+* Hosmer-Lemeshow plots
+
+
+Here are some examples using the 2-class case.
+
+### Plot ROC
+
+```{r eval=TRUE, results='markup', echo=TRUE}
+plot_roc(mo2)
+```
+
+
+
+### Faraway halfnorm plots
+
+```{r eval=TRUE, results='markup', echo=TRUE}
+halfnorm_plot(mo2)
+```
+
+
+
+### Hosmer-Lemeshow Plot
+
+```{r eval=TRUE, results='markup', echo=TRUE}
+hosmer_lemeshow(mo2)
+```
+
+
+
+
+## Appendix
+
+### Packages
+
+```{r}
+search()
+```
+
+### Code
+
+```{r echo=FALSE, results='asis'}
+kode <- read_file('appendix.R')
+kode <- gsub('\n##[ ]', '\n', kode)
+cat("```\n")
+cat(kode)
+cat("\n")
+cat("```")
+```
+
