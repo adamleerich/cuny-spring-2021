@@ -59,6 +59,23 @@ for (i in 1:K) {
   sigma <- sigma + sigma_k[[i]]
 }
 
+
+# MASS::lda defines f1
+# define f2 to show how it compares
+f1 <- sqrt(diag(var(X - mu[k_integer, ])))
+f2 <- (sigma * (N - K) / (N - 1)) %>% diag %>% sqrt
+
+f1
+f2
+
+# scaling?
+diag(1/f1, P, P)
+
+
+
+
+
+
 sigma_inv <- solve(sigma)
 
 
@@ -81,6 +98,9 @@ pred_X <- apply(LDF_X, 1, function(r) {which(r == max(r))})
 mass_lda <- MASS::lda(
   species ~ bill_length_mm + bill_depth_mm + flipper_length_mm + body_mass_g,
   data = penguins)
+
+mass_lda %>% names
+mass_lda %>% str
 
 pred_mass <- predict(mass_lda)$class %>% as.integer
 
