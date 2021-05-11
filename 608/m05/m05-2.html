@@ -1,0 +1,117 @@
+<!doctype html>
+
+<!-- 
+  Help from the following:
+    * https://gist.github.com/cmalven/1885287#gistcomment-3519206
+    * http://www.learningaboutelectronics.com/Articles/How-to-retrieve-data-from-a-text-box-in-javascript.php#:~:text=To%20extract%20the%20information%20which,entered%20into%20this%20text%20box.
+    * https://www.tutorialsteacher.com/d3js/loading-data-from-file-in-d3js
+
+-->
+  
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Data 608 HW #5 Adam Rich</title>
+  <meta name="description" content="Data 608 HW #5">
+  <meta name="author" content="Adam Rich">
+  <!--<link rel="stylesheet" href="css/styles.css?v=1.0">-->
+  <!--[if lt IE 9]><script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.js"></script><![endif]-->
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+</head>
+
+
+<body>
+
+  <h2>Reverse Strings</h2>  
+  <form>
+    Enter string to reverse: <input type="text" id="my-string" autofocus='autofocus'/>
+    <br/><br/>
+    <input type="submit" value="Reverse!" onclick="clickReverseButton();return false;" />
+    <br/>
+  </form>
+  <div id='my-string-reversed'></div>
+
+
+  <h2>Integer multiples</h2>
+  <form>
+    Enter a number: <input type="number" id="my-number"/>
+    <br/><br/>
+    <input type="submit" value="Multiply!" onclick="clickMultiplyButton();return false;" />
+    <br/>
+  </form>
+  <div id='my-num-table'></div>
+
+
+  <h2>President's Data</h2>
+  <select id="presidents-dropdown" onchange="selectPresident();return false;">
+    <option id='csv-wait' value="wait">Waiting for CSV data to load...</option>
+  </select>
+  <div id='my-president-deets'></div>
+
+
+
+  <script>
+
+    csvPath = "http://raw.githubusercontent.com/adamleerich/CUNY_DATA_608/master/module5/data/presidents.csv"
+    csvData = {};
+    pdd = document.getElementById('presidents-dropdown');
+
+    function clickReverseButton() {
+      s = document.getElementById('my-string');
+      reversed = reverseString(s.value)
+      output = '"' + s.value + '" reversed is "' + reversed + '"<br/>';
+      document.getElementById('my-string-reversed').innerHTML += output;
+      s.value = "";
+    }
+
+    function reverseString(s) {
+      reversed = '';
+      n = s.length;
+      for (var i = 0; i < n; i++) {
+        reversed += s[n - i - 1];
+      }
+      return reversed;
+    }
+
+    function clickMultiplyButton() {
+      e = document.getElementById('my-number');
+      num = e.value;
+      i = 0;
+      output = '<h3>Multiples of ' + num + ': </h3>\n<table border="1px">\n';
+      for(var r = 0; r < 5; r++) {
+        output += '<tr>';
+        for(var c = 0; c < 4; c++) {
+          i++;
+          output += '<td>' + (i*num) + '</td>'
+        }
+        output += '</tr>\n';
+      }
+      output += '<table>\n';
+      document.getElementById('my-num-table').innerHTML = output;
+      e.value = null;
+    }
+
+    function selectPresident() {
+      p = pdd.value;
+      r = csvData[p];
+      document.getElementById('my-president-deets').innerHTML = 
+        p + ' was ' + r.Weight + ' pounds and ' + r.Height + ' inches tall';
+    }
+
+    
+    d3.csv(csvPath, function(row) {
+      csvData[row.Name] = row;
+      pdd.innerHTML += '<option value="' + row.Name + '">' + row.Name + '</option>';
+    }).then(function(data) {
+      document.getElementById('csv-wait').remove();
+      selectPresident();
+    })
+
+
+  </script>
+
+
+  
+</body>
+</html>
+
